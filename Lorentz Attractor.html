@@ -1,0 +1,190 @@
+<html>
+    <head>
+        <title>Visual Computing Lab-2</title>
+        <script src="https://web.cs.manchester.ac.uk/three/js/stats.min.js"></script>
+    </head>
+    <body>
+        <script type="module">
+        import * as THREE from "https://web.cs.manchester.ac.uk/three/three.js-master/build/three.module.js"
+        import { OrbitControls } from "https://web.cs.manchester.ac.uk/three/three.js-master/examples/jsm/controls/OrbitControls.js";
+        
+        var scene, renderer, camera, controls;
+        const NUM_LORENZ = 2
+        // Lorenz Line -> Line, Geometry, Material
+        // Lorenz Sphere -> Sphere, Geometry, Material
+        // Lorenz, Sphere
+        var LorenzLine = new Array(NUM_LORENZ);
+        var LorenzSphere = new Array(NUM_LORENZ);
+        var LorenzGeometry = new Array(NUM_LORENZ);
+        var LorenzMaterial = new Array(NUM_LORENZ);
+        var SphereGeometry = new Array(NUM_LORENZ);
+        var SphereMaterial = new Array(NUM_LORENZ);
+        var Lorenz = new Array(NUM_LORENZ);
+        var Sphere = new Array(NUM_LORENZ);
+        var LorenzColours = new Array(0x00FF00, 0xff0000);
+        var SphereColours = new Array(0x00FF00, 0xff0000);
+        var x = new Array(NUM_LORENZ),
+        y = new Array(NUM_LORENZ),
+        z = new Array(NUM_LORENZ),
+        a = 10.0,
+        b = 28.0,
+        c = 2.6,
+        // a = new Array(NUM_LORENZ),
+        // b = new Array(NUM_LORENZ),
+        // c = new Array(NUM_LORENZ);
+        dt= 0.01; // timestep.
+        var drawCount=0; // how many points added so far.
+        var MAXPOINTS= 5000000;
+        var scale = 10;
+
+        // set the simulation up.
+        init();
+        // animate per frame of the simulation.
+        animate();
+
+        function init() 
+        {
+            // create the scene.
+            scene= new THREE.Scene();
+            // create the camera.
+            camera= new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1,
+            10000);
+            camera.position.set(0, 0, 100);
+
+            renderer= new THREE.WebGLRenderer();
+            renderer.setClearColor(0x000000, 1.0);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.autoRotate = true;
+            // create the renderer.
+
+            for (let n = 0; n < NUM_LORENZ; n++) 
+            {
+                //Inistialise starting points of attractor
+                x[n] = (Math.random()*0.02)*scale;
+                y[n] = (Math.random()*0.02)*scale;
+                z[n] = (Math.random()*0.02)*scale;
+                // create the Lorenz geometry.
+                LorenzGeometry[n] = new THREE.BufferGeometry();
+                Lorenz[n] = new Float32Array(MAXPOINTS*3);
+                Lorenz[n][drawCount] = x[n];
+                Lorenz[n][drawCount+1] = y[n];
+                Lorenz[n][drawCount+2] = z[n];
+                
+                LorenzGeometry[n].setAttribute('position', new THREE.BufferAttribute(Lorenz[n], 3));
+                // create the Lorenz material.
+                LorenzMaterial[n] = new THREE.LineBasicMaterial({ color:LorenzColours[n], linewidth: 1});
+                LorenzLine[n] = new THREE.Line(LorenzGeometry[n], LorenzMaterial[n]);
+                
+                // add the Lorenz line to the scene.
+                scene.add(LorenzLine[n]);
+                
+                // Define a small red sphere.
+                SphereGeometry[n] = new THREE.SphereGeometry(0.5,32,32);
+                SphereMaterial[n] = new THREE.MeshBasicMaterial({color: SphereColours[n]});
+                LorenzSphere[n] = new THREE.Mesh(SphereGeometry[n], SphereMaterial[n]);
+                LorenzSphere[n].position.set(x[n],y[n],z[n]);
+                // add the sphere to the scene.
+                scene.add(LorenzSphere[n]);
+            }
+            drawCount = drawCount + 3;
+        }
+        // } // init()_
+
+        function animate() {
+        // called at every frame. Adds a new Lorenz point and updates.
+        requestAnimationFrame(animate);
+        // check we are not exceeding the space allocated for the points.
+        if (drawCount/3 > MAXPOINTS)
+        {
+            drawCount = 0;
+        }
+        updateLorenz(); // add new point to each Attractor
+        renderer.render(scene, camera);
+        } // animate()
+
+        function updateLorenz() {
+        for (let n= 0; n < NUM_LORENZ; n++) {
+        var LorenzPoints = LorenzLine[n].geometry.attributes.position.array;
+        // update the Lorenz velocities and co-ordinates
+        var pre_x = x[n];
+        var pre_y = y[n];
+        var pre_z = z[n];
+
+        var vel_x = (pre_y - pre_x)*a;
+        var vel_y = (b*pre_x) - pre_y -(pre_x*pre_z);
+        var vel_z = -(c*pre_z) + (pre_x*pre_y);
+
+        x[n] = pre_x + (vel_x*dt);
+        y[n] = pre_y + (vel_y*dt);
+        z[n] = pre_z + (vel_z*dt);
+        // // Update the position of the sphere to the newest point.
+        LorenzSphere[n].position.set(x[n],y[n],z[n]);
+        // // Add the newest point to the LorenzPoints array.
+        // // Note that points in the LorenzPoints array occupy 3 successive slots for the x, y and z components.
+        Lorenz[n][drawCount] = x[n];
+        Lorenz[n][drawCount+1] = y[n];
+        Lorenz[n][drawCount+2] = z[n];
+        // // Set the range of points to be drawn and draw them
+        // ?????
+        LorenzLine[n].geometry.setDrawRange(0,drawCount/3);
+        LorenzLine[n].geometry.attributes.position.needsUpdate = true;
+        // // } // for
+        
+        } // updateLorenz()
+        drawCount += 3;
+
+        /*
+        Queries 
+        1. Why do you need a limit to the number of points?
+        Ans. You need a limit to the number of points for the animation to run smoothly 
+        without causing any lag becuase too many points would require more time to draw them on the screen.
+        Also the animation would look very congested with too many points and the final appearence may not 
+        resemble the intended image/design.
+
+
+        2. Why would you draw the head of the attractor as a larger point?
+        Ans. To distinguish between the attractor and it's trail and since the head of the attractor 
+        represents the start of the attractor.
+
+        3. Why can’t two attractors have the same starting point?
+        Ans. Since the two attractors would leave behind the same trial and it wouldn't be 
+        possible to differentiate between the two attractors. Thus it wouldn't form the intended pattern. 
+
+        4. How long is the buffer that stores point’s co-ordinates?
+        Ans. The maximum number of points that can be stored (MAX_POINTS) multiplied by 3, 
+        since each point has three co-ordinates (x,y,z). 
+
+        5. What are the arguments to SphereGeometry?
+        Ans. There are 7 arguments:
+        radius — sphere radius. Default is 1.
+        widthSegments — number of horizontal segments. Minimum value is 3, and the default is 32.
+        heightSegments — number of vertical segments. Minimum value is 2, and the default is 16.
+        phiStart — specify horizontal starting angle. Default is 0.
+        phiLength — specify horizontal sweep angle size. Default is Math.PI * 2.
+        thetaStart — specify vertical starting angle. Default is 0.
+        thetaLength — specify vertical sweep angle size. Default is Math.PI.
+                
+        6. What have you done if (when) the number of points to be drawn exceeds the
+        capacity of the point buffer?
+        Ans. The drawCount variable is set to 0 to store the new points 
+        back to where the initial first points were stored on the buffer (to overwrite the new points in place of the 
+        old initial points on the buffer).
+
+        7. What is the effect of increasing the timestep Dt?
+        Ans.It causes the attractors to deviate and the scale of the animation differs when dt is increased by upto x2 (from 0.01 to 0.02) 
+        and if dt is increased by more(beyond 0.03) then the animation doesn't appear as intended and the attractors deviate and tend to disappear from
+        the initial camera viewpoint.
+
+        8. What do you need to modify to increase the number of attractors?
+        Ans. you need to increase the value of NUM_LORENZ variable and also specify the colours of the 
+        new attractors on the LorenzColours and SphereColours variables to differentiate between the attractors.  
+
+        */
+    }
+    </script>
+    </body>
+</html>
+        
